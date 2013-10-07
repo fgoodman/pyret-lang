@@ -70,3 +70,8 @@ fun expr-to-js(ast):
   end
 end
 
+fun pyret-to-javascript(pyret :: String) -> String:
+  program-to-js(A.parse-tc(pyret, "pyret-to-javascript", { check : false }), [])
+end
+
+pyret-to-javascript('"test".char-at(3)')
