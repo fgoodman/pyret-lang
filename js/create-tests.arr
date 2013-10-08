@@ -18,7 +18,7 @@ fun toplevel-to-js(ast :: A.Program):
 end
 
 data TestPredicate:
-  | test-print(correct-output :: String)
+  | test-print(correct-output :: String, correct-error :: String)
   | equal-to(result :: String)
   | predicate(pred-fun :: String)
 end
@@ -38,9 +38,9 @@ fun make-test(test-name :: String, ast :: A.Program, pred :: TestPredicate):
       format("testEquals('~a', ~a, ~a)", [test-name, toplevel-to-js(ast), toplevel-to-js(result-program)])
     | predicate(pred-fun) =>
       format("testPred('~a', ~a, ~a)", [test-name, toplevel-to-js(ast), pred-fun])
-    | test-print(correct-output) =>
+    | test-print(correct-output, err-output) =>
       format("testPrint('~a', ~a, ~a)", [test-name, toplevel-to-js(ast),
-        J.stringify({expected: correct-output})])
+        J.stringify({expected-out: correct-output, expected-err: err-output})])
   end
 end
 
@@ -80,19 +80,24 @@ MISC = [
       "addition",
       "2 + 2",
       equal-to("4")
-    ),
-  str-test-case(
-      "print 5",
-      "test-print(5)",
-      test-print(F.input-file("tests/numbers/five.arr.out").read-file())
     )
 ]
 
 fun out-file-of(filename): filename + ".out";
+fun err-file-of(filename): filename + ".err";
+
+fun error-to-json(e):
+  if builtins.has-field(e, "message"):
+    e.message
+  else:
+    tostring(e)
+  end
+end
 
 fun generate-output(filename):
   in = F.input-file(filename)
   stdout = F.output-file(out-file-of(filename), false)
+  stderr = F.output-file(err-file-of(filename), false)
   var the-output = ""
   fun capturing-print(val):
     the-output := the-output + torepr(val) + "\n"
@@ -101,10 +106,25 @@ fun generate-output(filename):
   print("generating for: " + filename)
   env = N.whalesong-env.{test-print: capturing-print}
   program = A.parse(in.read-file(), "test", {check : false})
-  value = E.eval(A.to-native(program.pre-desugar), env, {})
-  stdout.display(the-output)
-  stdout.display(torepr(value))
+  data EvalResult:
+    | success(val)
+    | exn(error)
+  end
+  value :: EvalResult = try:
+    success(E.eval(A.to-native(program.pre-desugar), env, {}))
+  except(e):
+    exn(e)
+  end
+  cases(EvalResult) value:
+    | success(v) =>
+      stdout.display(the-output)
+      stdout.display(torepr(v))
+    | exn(e) => 
+      stdout.display(the-output)
+      stderr.display(error-to-json(e))
+  end
   stdout.close-file()
+  stderr.close-file()
 end
 
 
@@ -123,8 +143,6 @@ fun all-tests(path):
   end
 end
 
-all-tests("tests")
-
 # one level of sections for now
 fun get-dir-sections(path):
   dir = D.dir(path)
@@ -138,7 +156,10 @@ fun get-dir-sections(path):
           [str-test-case(
               test-file,
               F.input-file(file-path).read-file(),
-              test-print(F.input-file(out-file-of(file-path)).read-file())
+              test-print(
+                  F.input-file(out-file-of(file-path)).read-file(),
+                  F.input-file(err-file-of(file-path)).read-file()
+                )
             )] + ts
         else:
           ts
@@ -151,8 +172,7 @@ fun get-dir-sections(path):
   end
 end
 
-#generate-output("tests/numbers/five.arr")
-
+all-tests("tests")
 FILE-TESTS = get-dir-sections("tests")
 
 generate-test-files([test-section("misc", MISC)] + FILE-TESTS)

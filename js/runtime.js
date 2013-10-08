@@ -316,8 +316,42 @@ var Pyret = (function () {
 	};
     }
 
+    function NormalResult(val) {
+      this.val = val;
+    }
+    function makeNormalResult(val) { return new NormalResult(val); }
+
+    function FailResult(exn) {
+      this.exn = exn;
+    }
+    function makeFailResult(exn) { return new FailResult(exn); }
+
+    function errToJSON(exn) {
+      return JSON.stringify({exn: String(exn)})
+    }
+
     return {
-	makeRuntime: makeRuntime
-    };
+      nothing: {},
+      makeNumber: makeNumber,
+      isNumber: isNumber,
+      equal: equal,
+      getField: getField,
+      getTestPrintOutput: function(val) {
+        return testPrintOutput + toRepr(val).s;
+      },
+      NormalResult: NormalResult,
+      FailResult: FailResult,
+      makeNormalResult: makeNormalResult,
+      makeFailResult: makeFailResult,
+      toReprJS: toRepr,
+      errToJSON: errToJSON,
+
+      "test-print": makeFunction(testPrint),
+    }
+  }
+
+  return {
+    makeRuntime: makeRuntime
+  };
 })();
 

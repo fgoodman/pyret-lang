@@ -3,10 +3,11 @@
 *.swp
 *.swo
 *.out
+*.err
 docs/*.html
 docs/*.css
 docs/*.js
 docs/lang/*
 src/lang/pyret-lib/moorings.rkt
-../js/test-runner/tests.js
+js/test-runner/tests.js
 *#
