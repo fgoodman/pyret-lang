@@ -1,4 +1,4 @@
-var Pyret = (function () {
+var PYRET = (function () {
 
     function makeRuntime() {
 
