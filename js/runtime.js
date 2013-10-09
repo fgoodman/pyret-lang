@@ -168,9 +168,11 @@ var PYRET = (function () {
 
 	var boolDict = {
 	    _and: makeMethod(function(left, right) {
+		primArgsCheck(isBool, "and", [left, right]);
 		return makeBool(left.b && right.b);
 	    }),
 	    _or: makeMethod(function(left, right) {
+		primArgsCheck(isBool, "or", [left, right]);
 		return makeBool(left.b || right.b);
 	    }),
 	    tostring: makeMethod(function(self) {
@@ -180,6 +182,7 @@ var PYRET = (function () {
 		return makeString(self.b.toString());
 	    }),
 	    _equals: makeMethod(function(left, right) {
+		primArgsCheck(isBool, "equals", [left, right]);
 		return makeBool(left.b == right.b);
 	    }),
 	    _not: makeMethod(function(self) {
@@ -205,39 +208,51 @@ var PYRET = (function () {
 
 	var stringDict = {
 	    _plus: makeMethod(function(left, right) {
+		primArgsCheck(isString, "plus", [left, right]);
 		return makeString(left.s + right.s);
 	    }),
 	    _lessequal: makeMethod(function(left, right) {
+		primArgsCheck(isString, "lessequal", [left, right]);
 		return makeBool(left.s <= right.s);
 	    }),
 	    _lessthan: makeMethod(function(left, right) {
+		primArgsCheck(isString, "lessthan", [left, right]);
 		return makeBool(left.s < right.s);
 	    }),
 	    _greaterthan: makeMethod(function(left, right) {
+		primArgsCheck(isString, "greaterthan", [left, right]);
 		return makeBool(left.s > right.s);
 	    }),
 	    _greaterequal: makeMethod(function(left, right) {
+		primArgsCheck(isString, "greaterequal", [left, right]);
 		return makeBool(left.s >= right.s);
 	    }),
 	    _equals: makeMethod(function(left, right) {
+		primArgsCheck(isString, "equals", [left, right]);
 		return makeBool(left.s == right.s);
 	    }),
 	    append: makeMethod(function(left, right) {
+		primArgsCheck(isString, "append", [left, right]);
 		return makeString(left.s + right.s);
 	    }),
 	    contains: makeMethod(function(haystack, needle) {
+		primArgsCheck(isString, "contains", [haystack, needle]);
 		return makeBool(haystack.s.indexOf(needle.s) != -1);
 	    }),
 	    replace: makeMethod(function(str, substr, newsubstr) {
+		primArgsCheck(isString, "replace", [substr, newsubstr]);
 		return makeString(str.s.replace(new RegExp(substr.s, "g"), newsubstr.s));
 	    }),
 	    substring: makeMethod(function(str, start, end) {
+		primArgsCheck(isNumber, "substring", [start, end]);
 		return makeString(str.s.substring(start.n, end.n));
 	    }),
 	    "char-at": makeMethod(function(str, index) {
+		primArgsCheck(isNumber, "char-at", [index]);
 		return makeString(str.s.charAt(index.n));
 	    }),
 	    repeat: makeMethod(function(str, times) {
+		primArgsCheck(isNumber, "repeat", [times]);
 		return makeString(str.s.repeat(times.n));
 	    }),
 	    length: makeMethod(function(self) {
