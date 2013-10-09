@@ -2,13 +2,38 @@ var PYRET = (function () {
 
     function makeRuntime() {
 
+	/* p-method */
+
+	function PMethod(f) {
+	    this.method = f;
+	}
+	function makeMethod(f) { return new PMethod(f); } 
+	function isMethod(v) { return v instanceof PMethod; }
+
+	PMethod.prototype = {
+	    app: function() { throw "Cannot apply method directly."; },
+	    dict: {}
+	};
+
+	/* p-nothing *
+
 	/* p-base */
 
-	/* p-nothing */
-
-	var nothing = {};
-
 	/* p-object */
+
+	function PObject(o) {
+	    this.o = o;
+	}
+	function makeObject(o) { return new PObject(o); }
+	function isObject(o) { return o instanceof PObject; }
+
+	var objectDict = {
+	    
+	};
+
+	PObject.prototype = {
+	    dict: objectDict
+	};
 
 	/* p-number */
 
@@ -20,42 +45,54 @@ var PYRET = (function () {
 
 	var numberDict = {
 	    _plus: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "plus", [left, right]);
 		return makeNumber(left.n + right.n);
 	    }),
 	    _add: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "add", [left, right]);
 		return makeNumber(left.n + right.n);
 	    }),
 	    _minus: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "minus", [left, right]);
 		return makeNumber(left.n - right.n);
 	    }),
 	    _divide: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "divide", [left, right]);
+		if (right.n == 0) throw "Division by zero";
 		return makeNumber(left.n / right.n);
 	    }),
 	    _times: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "times", [left, right]);
 		return makeNumber(left.n * right.n);
 	    }),
 	    _torepr: makeMethod(function(self) {
 		return makeString(self.n.toString());
 	    }),
 	    _equals: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "equals", [left, right]);
 		return makeBool(left.n == right.n);
 	    }),
 	    _lessthan: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "lessthan", [left, right]);
 		return makeBool(left.n < right.n);
 	    }),
 	    _greaterthan: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "greaterthan", [left, right]);
 		return makeBool(left.n > right.n);
 	    }),
 	    _lessequal: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "lessequal", [left, right]);
 		return makeBool(left.n <= right.n);
 	    }),
 	    _greaterequal: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "greaterequal", [left, right]);
 		return makeBool(left.n >= right.n);
 	    }),
 	    tostring: makeMethod(function(self) {
 		return makeString(self.n.toString());
 	    }),
 	    modulo: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "modulo", [left, right]);
 		return makeNumber(left.n % right.n);
 	    }),
 	    truncate: makeMethod(function(self) {
@@ -65,9 +102,11 @@ var PYRET = (function () {
 		return makeNumber(Math.abs(self.n));
 	    }),
 	    max: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "max", [left, right]);
 		return makeNumber(Math.max(left.n, right.n));
 	    }),
 	    min: makeMethod(function(left, right) {
+		primArgsCheck(isNumber, "min", [left, right]);
 		return makeNumber(Math.min(left.n, right.n));
 	    }),
 	    sin: makeMethod(function(self) {
@@ -95,10 +134,10 @@ var PYRET = (function () {
 		return makeNumber(Math.sqrt(self.n));
 	    }),
 	    ceiling: makeMethod(function(self) {
-		return makeNumber(Math.ceil(self.n));
+		return makeNumber(Math.ceil(self.n).toFixed(1));
 	    }),
 	    floor: makeMethod(function(self) {
-		return makeNumber(Math.floor(self.n));
+		return makeNumber(Math.floor(self.n).toFixed(1));
 	    }),
 	    log: makeMethod(function(self) {
 		return makeNumber(Math.log(self.n));
@@ -110,6 +149,7 @@ var PYRET = (function () {
 		return self;
 	    }),
 	    expt: makeMethod(function(base, power) {
+		primArgsCheck(isNumber, "min", [base, power]);
 		return makeNumber(Math.pow(base.n, power.n));
 	    })
 	};
@@ -189,7 +229,7 @@ var PYRET = (function () {
 		return makeBool(haystack.s.indexOf(needle.s) != -1);
 	    }),
 	    replace: makeMethod(function(str, substr, newsubstr) {
-		return makeString(str.s.replace(substr.s, newsubstr.s));
+		return makeString(str.s.replace(new RegExp(substr.s, "g"), newsubstr.s));
 	    }),
 	    substring: makeMethod(function(str, start, end) {
 		return makeString(str.s.substring(start.n, end.n));
@@ -204,7 +244,9 @@ var PYRET = (function () {
 		return makeNumber(self.s.length);
 	    }),
 	    tonumber: makeMethod(function(self) {
-		return makeNumber(parseFloat(self.s));
+		var n = parseFloat(self.s);
+		if (isNaN(n)) throw "";
+		return makeNumber(n);
 	    }),
 	    tostring: makeMethod(function(self) {
 		return self;
@@ -230,19 +272,6 @@ var PYRET = (function () {
 	    dict: {} 
 	};
 
-	/* p-method */
-
-	function PMethod(f) {
-	    this.method = f;
-	}
-	function makeMethod(f) { return new PMethod(f); } 
-	function isMethod(v) { return v instanceof PMethod; }
-
-	PMethod.prototype = {
-	    app: function() { throw "Cannot apply method directly."; },
-	    dict: {}
-	};
-
 	/* p-mutable */
 
 	/* p-placeholder */
@@ -256,6 +285,9 @@ var PYRET = (function () {
 	    else if (isString(val1) && isString(val2)) {
 		return val1.s === val2.s;
 	    }
+	    else if (isBool(val1) && isBool(val2)) {
+		return val1.b === val2.b;
+	    }
 	    return false;
 	}
 
@@ -266,11 +298,14 @@ var PYRET = (function () {
 	    else if (isString(val)) {
 		return makeString('"' + val.s + '"');
 	    }
+	    else if (isBool(val)) {
+		return makeString(val.b);
+	    }
 	    else if (isFunction(val)) {
-		return makeString("fun: end");
+		return makeString("fun(): end");
 	    }
 	    else if (isMethod(val)) {
-		return makeString("method: end");
+		return makeString("method(): end");
 	    }
 	    throw ("toStringJS on an unknown type: " + val);
 	}
@@ -281,9 +316,10 @@ var PYRET = (function () {
 		return makeFunction(function() {
 		    var argList = Array.prototype.slice.call(arguments);
 		    return fieldVal.method.apply(null, [val].concat(argList));
-		});
-	    } else {
-		return fieldVal;
+		})
+	    }
+	    else {
+		throw str + " was not found on " + toRepr(val).s;
 	    }
 	}
 
@@ -295,8 +331,31 @@ var PYRET = (function () {
 	    return val;
 	}
 
+	function NormalResult(val) {
+	    this.val = val;
+	}
+	function makeNormalResult(val) { return new NormalResult(val); }
+
+	function FailResult(exn) {
+	    this.exn = exn;
+	}
+	function makeFailResult(exn) { return new FailResult(exn); }
+
+	function primArgsCheck(f, name, args) {
+	    for (var i = 0; i < args.length; i++) {
+		if (!f(args[i])) throw "Bad args to prim: " + name + " : " +
+		    Array.prototype.map.call(args, function (x) {
+			return String(toRepr(x).s).replace(/\"+/g, '');
+		    }).join(", ");
+	    }
+	}
+
+	function errToJSON(exn) {
+	    return String(exn);
+	}
+
 	return {
-	    nothing: nothing,
+	    nothing: {},
 
 	    makeNumber: makeNumber,
 	    isNumber: isNumber,
@@ -309,49 +368,23 @@ var PYRET = (function () {
 
 	    equal: equal,
 	    getField: getField,
-	    "test-print": makeFunction(testPrint),
 	    getTestPrintOutput: function(val) {
 		return testPrintOutput + toRepr(val).s;
-	    }
+	    },
+
+	    NormalResult: NormalResult,
+	    FailResult: FailResult,
+	    makeNormalResult: makeNormalResult,
+	    makeFailResult: makeFailResult,
+	    toReprJS: toRepr,
+	    errToJSON: errToJSON,
+
+	    "test-print": makeFunction(testPrint)
 	};
     }
 
-    function NormalResult(val) {
-      this.val = val;
-    }
-    function makeNormalResult(val) { return new NormalResult(val); }
-
-    function FailResult(exn) {
-      this.exn = exn;
-    }
-    function makeFailResult(exn) { return new FailResult(exn); }
-
-    function errToJSON(exn) {
-      return JSON.stringify({exn: String(exn)})
-    }
-
     return {
-      nothing: {},
-      makeNumber: makeNumber,
-      isNumber: isNumber,
-      equal: equal,
-      getField: getField,
-      getTestPrintOutput: function(val) {
-        return testPrintOutput + toRepr(val).s;
-      },
-      NormalResult: NormalResult,
-      FailResult: FailResult,
-      makeNormalResult: makeNormalResult,
-      makeFailResult: makeFailResult,
-      toReprJS: toRepr,
-      errToJSON: errToJSON,
-
-      "test-print": makeFunction(testPrint),
-    }
-  }
-
-  return {
-    makeRuntime: makeRuntime
-  };
+	makeRuntime: makeRuntime
+    };
 })();
 
