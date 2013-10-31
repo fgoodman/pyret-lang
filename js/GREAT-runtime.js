@@ -3,13 +3,13 @@ var PYRET = (function () {
     function makeRuntime() {
 	var badApp = function(type) {
 	    return function() {
-		throw makePyretException(makeString("check-fun: expected function, got " + type));
+		throw makePyretException("check-fun: expected function, got " + type);
 	    };
 	};
 
 	var badMeth = function(type) {
 	    return function() {
-		throw makePyretException(makeString("check-method: expected method, got " + type));
+		throw makePyretException("check-method: expected method, got " + type);
 	    };
 	};
 
@@ -21,7 +21,6 @@ var PYRET = (function () {
 	    app: badApp("base"),
 	    method: badMeth("base")
 	};
-	function isBase(v) { return v instanceof PBase; }
 
 
 	function PFunction(f, doc) {
@@ -39,7 +38,7 @@ var PYRET = (function () {
 	    this.app = f;
 	    this.dict = {
 		_doc: doc,
-		_method: function () { throw makePyretException(makeString("Can't convert a function field into a method.")); }
+		_method: function () { throw makePyretException("Can't convert a function field into a method."); }
 	    };
 	}
 	function makeFunction(f, doc) { return new PFunction(f, doc); }
@@ -47,15 +46,11 @@ var PYRET = (function () {
 	function isFunction(v) { return v instanceof PFunction || v instanceof _PFunction; }
 	PFunction.prototype = Object.create(PBase.prototype);
 	PFunction.prototype.method = badMeth("function");
-	PFunction.prototype.extend = function(field, value) {
-	    var f = makeFunction(this.app, this.dict._dic);
-	    f.dict[field] = value;
-	    return f;
-	};
 	function applyFunc(f, argList) {
+	    //console.log(f, argList);
 	    if (f.arity === undefined) f.arity = f.app.length;
 	    if (f.arity !== argList.length) {
-		throw makePyretException(makeString("Wrong number of arguments given to function."));
+		throw makePyretException("Wrong number of arguments given to function.");
 	    }
 
 	    return f.app.apply(null, argList);
@@ -76,7 +71,7 @@ var PYRET = (function () {
 	    this.method = m;
 	    this.dict = {
 		_doc: doc,
-		_fun: function () { throw makePyretException(makeString("Can't convert a method field into a function.")); }
+		_fun: function () { throw makePyretException("Can't convert a method field into a function."); }
 	    };
 	}
 	function makeMethod(m, doc) { return new PMethod(m, doc); }
@@ -84,11 +79,6 @@ var PYRET = (function () {
 	function isMethod(v) { return v instanceof PMethod || v instanceof _PMethod; }
 	PMethod.prototype = Object.create(PBase.prototype);
 	PMethod.prototype.app = badApp("method");
-	PMethod.prototype.extend = function(field, value) {
-	    var m = makeMethod(this.method, this.dict._dic);
-	    m.dict[field] = value;
-	    return m;
-	};
 
 
 	function PNothing() {}
@@ -143,7 +133,7 @@ var PYRET = (function () {
 	    }),
 	    _divide: _makeMethod(function(l, r) {
 		checkPrimitive(isNumber, "divide", [l, r]);
-		if (r.n === 0) throw makePyretException(makeString("Division by zero"));
+		if (r.n === 0) throw makePyretException("Division by zero");
 		return makeNumber(l.n / r.n);
 	    }),
 	    _times: _makeMethod(function(l, r) {
@@ -238,11 +228,6 @@ var PYRET = (function () {
 		return makeNumber(Math.pow(l.n, r.n));
 	    })
 	};
-	PNumber.prototype.extend = function(field, value) {
-	    var m = makeNumber(this.n);
-	    m.dict[field] = value;
-	    return m;
-	};
 
 
 	function PBool(b) {
@@ -272,6 +257,7 @@ var PYRET = (function () {
 		return makeString(self.b.toString());
 	    }),
 	    _equals: _makeMethod(function(l, r) {
+		r = applyFunc(r, []);
 		checkPrimitive(isBool, "equals", [l, r]);
 		return makeBool(l.b === r.b);
 	    }),
@@ -350,13 +336,7 @@ var PYRET = (function () {
 	    }),
 	    _torepr: _makeMethod(function(l) {
 		return makeString("\"" + l.s + "\"");
-		//return makeString("\\\"" + l.s + "\\\"");
 	    })
-	};
-	PString.prototype.extend = function(field, value) {
-	    var m = makeString(this.s);
-	    m.dict[field] = value;
-	    return m;
 	};
 
 
@@ -371,21 +351,46 @@ var PYRET = (function () {
 	    }),
 	    guard: _makeMethod(function(self, g) {
 		if (!isPlaceholder(self)) {
-		    throw makePyretException(makeString("typecheck failed; expected Placeholder and got\n" + toRepr(self).s));
+		    throw makeObject({
+			path: makeString(""),
+			line: makeString(""),
+			column: makeString(""),
+			system: makeString(""),
+			value: makeObject({message:makeString("typecheck failed; expected Placeholder and got\n" + toRepr(self).s)})
+		    });
 		}
 		else {
-		    applyFunc(checkBrand, [_makeFunction(function(v) { return makeBool(isFunction(v)); }), g, makeString("Function")]);
-		    if (self.v !== undefined) throw makePyretException(makeString("Tried to add guard on an already-initialized placeholder"));
+		    //console.log([_makeFunction(function(v) { return makeBool(isFunction(v)); }), g, makeString("Function")]);
+		    try {
+			applyFunc(checkBrand, [_makeFunction(function(v) { return makeBool(isFunction(v)); }), g, makeString("Function")]);
+		    }
+		    catch (e) {
+			throw makeObject({message:makeString(e.exnVal)});
+		    }
+
+		    if (self.v !== undefined) throw makeObject({
+			path: makeString(""),
+			line: makeString(""),
+			column: makeString(""),
+			system: makeString(""),
+			value: makeObject({message:makeString("Tried to add guard on an already-initialized placeholder")})
+		    });
 
 		    self.guards.push(g);
 		}
 	    }),
 	    set: _makeMethod(function(self, v) {
 		if (!isPlaceholder(self)) {
-		    throw makePyretException(makeString("typecheck failed; expected Placeholder and got\n" + toRepr(self).s));
+		    throw makeObject({
+			path: makeString(""),
+			line: makeString(""),
+			column: makeString(""),
+			system: makeString(""),
+			value: makeObject({message:makeString("typecheck failed; expected Placeholder and got\n" + toRepr(self).s)})
+		    });
 		}
 		else if (self.v !== undefined) {
-		    throw makePyretException(makeString("Tried to set value in already-initialized placeholder"));
+		    throw makePyretException("Tried to set value in already-initialized placeholder");
 		}
 		else {
 		    for (var i in self.guards) {
@@ -393,10 +398,13 @@ var PYRET = (function () {
 			    applyFunc(self.guards[i], [v]);
 			}
 			catch (e) {
-			    throw makePyretExceptionSys(makeObject({
-				message: e, // hack
-				type: makeString("")
-			    }), true);
+			    throw makeObject({
+				path: makeString(""),
+				line: makeString(""),
+				column: makeString(""),
+				system: makeString(""),
+				value: makeObject({message:makeString(e.exnVal)})
+			    });
 			}
 		    }
 		    self.v = v;
@@ -414,15 +422,25 @@ var PYRET = (function () {
 	};
 	function getPlaceholderValue(p) {
 	    if (!isPlaceholder(p)) {
-		throw makePyretException(makeString("typecheck failed; expected Placeholder and got\n" + toRepr(p).s));
+		throw makeObject({
+		    path: makeString(""),
+		    line: makeString(""),
+		    column: makeString(""),
+		    system: makeString(""),
+		    value: makeObject({message:makeString("typecheck failed; expected Placeholder and got\n" + toRepr(p).s)})
+		});
 	    }
 	    if (p.v !== undefined) {
 		return p.v;
 	    }
 	    else {
-		throw makePyretException(makeObject({
-		    message: makeString("Tried to get value from uninitialized placeholder") // hack
-		}), true);
+		throw makeObject({
+		    path: makeString(""),
+		    line: makeString(""),
+		    column: makeString(""),
+		    system: makeString(""),
+		    value: makeObject({message:makeString("Tried to get value from uninitialized placeholder")})
+		});
 	    }
 	}
 
@@ -469,7 +487,7 @@ var PYRET = (function () {
 	    else if (isString(val1) && isString(val2)) return val1.s === val2.s;
 	    else if (isFunction(val1) && isFunction(val2)) return val1.app === val2.app;
 	    else if (isMethod(val1) && isMethod(val2)) return val1.method === val2.method;
-	    else if (isPlaceholder(val1) && isPlaceholder(val2)) return val1 === val2;
+	    else if (isPlaceholder(val1) && isPlaceholder(val2)) return val1.v === val2.v;
 	    else if (isMutable(val1) && isMutable(val2)) return val1.v === val2.v;
 	    else return false;
 	}
@@ -485,22 +503,19 @@ var PYRET = (function () {
 	}
 
 	function toString(val) {
-	    return getField(val, "tostring").app();
+	    return getField(v, "tostring").app();
 	}
 
 
 	function getRawField(val, str) {
-	    if (str instanceof PString) str = str.s;
 	    var field = val.dict[str];
 	    if (field !== undefined) return field;
-	    else {
-		throw makePyretException(makeString(str + " was not found on " + toRepr(val).s));
-	    }
+	    else throw makePyretException(str + " was not found on " + toRepr(val).s);
 	}
 
 	function getField(val, str) {
 	    var field = getRawField(val, str);
-	    if (isMutable(field)) throw makePyretException(makeString("Cannot look up mutable field \"" + str + "\" using dot or bracket."));
+	    if (isMutable(field)) throw makePyretException("Cannot look up mutable field \"" + str + "\" using dot or bracket.");
 	    else if (isPlaceholder(field)) return getPlaceholderValue(field);
 	    else if (isMethod(field)) {
 		var f = makeFunction(function () {
@@ -519,7 +534,7 @@ var PYRET = (function () {
 		// perform read checks
 		return field;
 	    }
-	    else throw makePyretException(makeString("Cannot look up immutable field \"" + str + "\" with the ! operator"));
+	    else throw makePyretException("Cannot look up immutable field \"" + str + "\" with the ! operator");
 	}
 
 	var brander = _makeFunction(function() {
@@ -576,35 +591,33 @@ var PYRET = (function () {
 		}
 	    }
 	    else if (isString(ck)) {
-		throw makePyretException(makeString("cannot check-brand with non-function"));
+		throw makePyretException("cannot check-brand with non-function");
 	    }
 	    else if (isFunction(ck)) {
-		throw makePyretException(makeString("cannot check-brand with non-string"));
+		throw makePyretException("cannot check-brand with non-string");
 	    }
 	    else {
-		throw makePyretException(makeString("check-brand failed"));
+		throw makePyretException("check-brand failed");
 	    }
 	});
 
 	function checkPrimitive(f, name, args) {
 	    for (var i = 0; i < args.length; i++) {
-		if (!f(args[i])) throw makePyretException(makeString("Bad args to prim: " + name + " : " +
+		if (!f(args[i])) throw makePyretException("Bad args to prim: " + name + " : " +
 		    Array.prototype.map.call(args, function (arg) {
 			return String(toRepr(arg).s).replace(/\"+/g, ""); // TODO: make this not ugly
-		    }).join(", ")));
+		    }).join(", "));
 	    }
 	}
 
 	function throwTypeError(typname, o) {
-	    throw makePyretException(makeString("typecheck failed; expected " + typname + " and got\n" + toRepr(o).s));
+	    throw makePyretException("typecheck failed; expected " + typname + " and got\n" + toRepr(o).s);
 	}
 	
 
 	var testPrintOutput = "";
 	function testPrint(val) {
-	    var str;
-	    if (val instanceof PString) str = "\"" + toString(val).s + "\""; // hack
-	    else str = toRepr(val).s;
+	    var str = toRepr(val).s;
 	    console.log("testPrint: ", val, str);
 	    testPrintOutput += str + "\n";
 	    return val;
@@ -621,32 +634,11 @@ var PYRET = (function () {
 	}
 	function makeFailResult(exn) { return new FailResult(exn); }
 
-	function PyretException(exnVal, exnSys) {
+	function PyretException(exnVal) {
 	    this.exnVal = exnVal;
-	    this.exnSys = exnSys;
 	}
 	function makePyretException(exnVal) {
-	    return new PyretException(exnVal, false);
-	}
-	function makePyretExceptionSys(exnVal, exnSys) {
-	    return new PyretException(exnVal, exnSys);
-	}
-	PyretException.prototype.dict = {
-	    _torepr: _makeMethod(function(self) {
-		return makeString(self.exnVal); // hack
-	    })
-	};
-
-	function unwrapException(exn) {
-	    if (!(exn instanceof PyretException)) throw exn;
-	    return makeObject({
-		path: makeString(""),
-		line: makeString(""),
-		column: makeString(""),
-		value: exn.exnVal,
-		system: makeBool(exn.exnSys),
-		trace: makeObject({ "is-empty": makeBool(true) })
-	    });
+	    return new PyretException(exnVal);
 	}
 
 	function errToJSON(exn) {
@@ -657,7 +649,6 @@ var PYRET = (function () {
 	    namespace: Namespace({
 		nothing: {},
 
-		Any: _makeFunction(function(v) { return makeBool(isBase(v)); }),
 		Number: _makeFunction(function(v) { return makeBool(isNumber(v)); }),
 		String: _makeFunction(function(v) { return makeBool(isString(v)); }),
 		Bool:_makeFunction(function(v) { return makeBool(isBool(v)); }),
@@ -680,18 +671,9 @@ var PYRET = (function () {
 
 		"test-print": _makeFunction(testPrint),
 		tostring: _makeFunction(function(val) {
-		    if (val.dict !== undefined && val.dict["tostring"] !== undefined) {
-			return applyFunc(getField(val, "tostring"), []);
-		    }
-		    else {
-			return applyFunc(getField(val, "_torepr"), []);
-		    }
+		    return applyFunc(getField(val, "tostring"), []);
 		}),
 		torepr: _makeFunction(toRepr),
-		print: _makeFunction(function(v) {
-		    console.log("print", v);
-		    return v;
-		}),
 
 		"mk-placeholder": _makeFunction(function () {
 		    return new PPlaceholder();
@@ -707,9 +689,7 @@ var PYRET = (function () {
 
 		brander: brander,
 		"check-brand": checkBrand,
-		raise: _makeFunction(function(e) {
-		    throw makePyretException(e);
-		}),
+		raise: _makeFunction(function(e) { console.log(e); throw makePyretException(e); }),
 
 		"prim-num-keys": _makeFunction(function(v) {
 		    return makeNumber(Object.keys(v.dict).length);
@@ -722,72 +702,12 @@ var PYRET = (function () {
 		    var obj = makeObject({ "is-empty": makeBool(true) });
 		    for (var i in keys) {
 			obj = makeObject({
-			    "is-empty": makeBool(false),
 			    first: makeString(keys[i]),
 			    rest: obj
 			});
 		    }
 
 		    return obj;
-		}),
-
-		"prim-read-sexpr": _makeFunction(function(s) {
-		    s = s.s;
-		    function mklist(lst) {
-			if (lst instanceof Array) {
-			    lst = lst.reverse();
-			    var obj = makeObject({
-				"is-empty": makeBool(true)
-			    });
-			    for (var i in lst) {
-				obj = makeObject({
-				    "is-empty": makeBool(false),
-				    first: lst[i],
-				    rest: obj
-				});
-			    }
-			    return obj;
-			}
-			return lst;
-		    }
-
-		    function tokenize(s) {
-			var tokens = s.split('(').join(' ( ').split(')').join(' ) ').split(' ').filter(function (s) { return s !== ''; });
-			return tokens;
-		    }
-
-		    function atom(token) {
-			if (token.charAt(0) == '"' && token.charAt(token.length - 1) == '"') {
-			    return mklist([makeString("string"), makeString(token.substring(1, token.length - 1))]);
-			}
-			else if (!isNaN(Number(token))) {
-			    return makeNumber(Number(token)).extend("is-singular", makeBool(true));   
-			}
-			
-			return makeString(token).extend("is-singular", makeBool(true));
-		    }
-
-		    function read_from(tokens) {
-			if (tokens.length === 0) throw makePyretException("read-sexpr: Invalid s-expression. Unexpected EOF.");
-			
-			var token = tokens.shift();
-			
-			if (token === '(') {
-			    var L = [];
-			    while (tokens[0] !== ')') {
-				L.push(read_from(tokens));
-			    }
-			    tokens.shift();
-			    return mklist(L);
-			}
-			else if (token === ')') {
-			    throw makePyretException("read-sexpr: Invalid s-expression. Unexpected ).");
-			}
-			else {
-			    return atom(token);
-			}
-		    }
-		    return mklist(read_from(tokenize(s)));
 		}),
 
 		"data-to-repr": _makeFunction(function(val, name, fields) {
@@ -808,63 +728,78 @@ var PYRET = (function () {
 		    return makeString(name.s + "(" + out.join(", ") + ")");
 		}),
 
-		equiv: _makeFunction(function (obj1, obj2) {
-		    function equiv(obj1, obj2) {
-			function allSame(o1, o2) {
-			    if (isMethod(o1) || isFunction(o1)) {
-				return false;
-			    }
-			    else {
-				var left_val;
-				var right_val;
-				var same = true;
-				for (var key in o1.dict) {
-				    if (!(o2.dict !== undefined && o2.dict[key] !== undefined)) {
-					same = false;
-				    }
-				    else {
-					left_val = o1.dict[key];
-					right_val = o2.dict[key];
-					same = same && equiv(left_val, right_val);
-				    }
-
-				    if (!same) break;
-				}
-
-				return same;
-				
-			    }	
-			}
-
-			if (obj1.dict !== undefined && obj1.dict["_equals"] !== undefined) {
-			    return applyFunc(getField(obj1, "_equals"), [obj2]).b;
-			}
-			else if (Object.keys(obj1.dict).length == Object.keys(obj2.dict).length) {
-			    return allSame(obj1, obj2);
-			}
-			else {
-			    return false;
-			}
+		equiv: _makeFunction(function (obj1, obj2) { // http://stackoverflow.com/a/3849480
+		    function countProps(obj) {
+			var count = 0;
+			for (k in obj) if (obj.hasOwnProperty(k)) count++;
+			return count;
 		    }
-		    return makeBool(equiv(obj1, obj2));
+		    function objectEquals(v1, v2) {
+			if (typeof(v1) !== typeof(v2)) return false;
+			else if (countProps(v1) !== countProps(v2)) return false;
+
+			var r = true;
+			for (k in v1) {
+			    r = objectEquals(v1[k], v2[k]);
+			    if (!r) return false;
+			}
+			return true;
+		    }
+		    if (isObject(obj1) && isObject(obj2)) {
+			return makeBool(objectEquals(obj1.dict, obj2.dict));
+		    }
+		    else {
+			return makeBool(obj1 === obj2);
+		    }
 		}),
 
 		"data-equals": _makeFunction(function(self, other, brand, fields) {
 		    var b1 = applyFunc(brand, [other]);
 
-		    if (!isTrue(b1)) return b1;
-
 		    var b2 = true;
 		    var field = fields;
-		    while (field.dict["first"] !== undefined) {
+		    while (fields.dict["first"] !== undefined) {
 			var thisval = getField(self, getField(field, "first"));
 			var otherval = getField(other, getField(field, "first"));
-			b2 = b2 && applyFunc(getField(thisval, "_equals"), [otherval]).b;
+			b2 == b2 && applyFunc(getField(thisval, "equals"), [otherval]).b;
 			field = getField(field, "rest");
 		    }
-		    
-		    return makeBool(b2);
+
+		    return makeBool(b1 && b2);
 		})
+
+		/*
+		builtins: makeObject({
+		    equiv: _makeFunction(function (obj1, obj2) { // http://stackoverflow.com/a/3849480
+			function countProps(obj) {
+			    var count = 0;
+			    for (k in obj) if (obj.hasOwnProperty(k)) count++;
+			    return count;
+			}
+			function objectEquals(v1, v2) {
+			    if (typeof(v1) !== typeof(v2)) return false;
+			    else if (countProps(v1) !== countProps(v2)) return false;
+
+			    var r = true;
+			    for (k in v1) {
+				r = objectEquals(v1[k], v2[k]);
+				if (!r) return false;
+			    }
+			    return true;
+			}
+			if (isObject(obj1) && isObject(obj2)) {
+			    return makeBool(objectEquals(obj1.dict, obj2.dict));
+			}
+			else {
+			    return makeBool(obj1 === obj2);
+			}
+		    }),
+		    
+		    
+		    "has-field": _makeFunction(function(obj, name) {
+			return makeBool(obj.dict[name.s] !== undefined);
+		    })
+		})*/
 	    }),
 	    runtime: {
 		nothing: {},
@@ -888,6 +823,7 @@ var PYRET = (function () {
 
 		isTrue: isTrue,
 
+
 		applyFunc: applyFunc,
 		equal: equal,
 		getRawField: getRawField,
@@ -902,7 +838,6 @@ var PYRET = (function () {
 		makeNormalResult: makeNormalResult,
 		makeFailResult: makeFailResult,
 		makePyretException: makePyretException,
-		unwrapException: unwrapException,
 		toReprJS: toRepr,
 		errToJSON: errToJSON
 	    }

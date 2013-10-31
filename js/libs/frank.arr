@@ -58,7 +58,8 @@ data List:
   | empty with:
     length(self): 0 end,
     append(self, other): other end,
-    _torepr(self): "[]" end
+    _torepr(self): "[]" end,
+    map(self, f) -> List: empty end
   | link(first, rest :: List) with:
     length(self): 1 + self.rest.length() end,
     append(self, other): self.first^link(self.rest.append(other)) end,
@@ -68,7 +69,8 @@ data List:
           combined + ", " + torepr(elt)
         end
       + "]"
-    end
+    end,
+    map(self, f): f(self.first)^link(self.rest.map(f)) end
 sharing:
   _plus(self, other): self.append(other) end
 end

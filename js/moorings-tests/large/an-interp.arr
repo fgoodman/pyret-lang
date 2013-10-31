@@ -101,7 +101,7 @@ end
 
 ### good test block ###
 
-  #number tests
+#number tests
   test-print(eval('2'))
 
   #string tests
@@ -117,7 +117,7 @@ end
   test-print(eval('(++ (++ "f" "oo") "bar")') == C.strV("foobar"))
 
   #equality tests
-  test-print((eval('(== "12" (++ "1" "2"))') <> C.numV(0)) == true)
+  test-print((eval('(== "12" (++ "1" "2"))') <> C.numV(0)) == true) # bad
   test-print((eval('(== "12" (++ "2" "1"))') == C.numV(0)) == true)
   test-print(checkers.check-raises("", fun(): eval('(== 1 2)') end, "", none))
   test-print(checkers.check-raises("", fun(): eval('(== 1 1)') end, "", none))
@@ -153,6 +153,10 @@ end
     == C.numV(2))
 
   #closure test
+print("val")
+print(eval('(let (f (fun (x) (fun (y) (+ x y))))
+             (let (g (f 1))
+                  (+ (g 2) (g 3))))'))
   test-print(eval('(let (f (fun (x) (fun (y) (+ x y))))
              (let (g (f 1))
                   (+ (g 2) (g 3))))')
@@ -161,7 +165,7 @@ end
   test-print(checkers.check-raises("", fun(): eval('(let (f (fun (x y) 1)) (f 1 x))') end, "", none))
 
   #cif test
-  test-print(eval('(if 2 1 2)') == C.numV(1))
-  test-print(eval('(if 0 1 2)') == C.numV(2))
+  test-print(eval('(if 2 1 2)') == C.numV(1)) # bad
+  test-print(eval('(if 0 1 2)') == C.numV(2)) # bad
   test-print(checkers.check-raises("", fun(): eval('(if 0 2 null)') end, "", none))
   test-print(checkers.check-raises("", fun(): eval('(if (fun () 2) 1 2)') end, "", none))

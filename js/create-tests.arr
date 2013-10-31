@@ -15,12 +15,14 @@ TESTS-PATH = "test-runner/tests.js"
 JS-ENV = N.library-env.{
   equiv: true,
   data-equals: true,
-  data-to-repr: true
+  data-to-repr: true,
+  prim-read-sexpr: true
 }
 TEST-ENV = N.whalesong-env.{
   equiv: true,
   data-equals: true,
-  data-to-repr: true
+  data-to-repr: true,
+  prim-read-sexpr: true
 }
 
 
@@ -226,9 +228,15 @@ fun get-dir-sections(path, create-test):
   end
 end
 
+frank-ast = A.parse-tc(
+  read-then-close("libs/frank.arr"),
+  "frank.arr",
+  { check : false, env : JS-ENV }
+  )
+
 fun create-print-test(name, program, out, err):
   print("Registering basic test: " + name)
-  str-test-case(name, program, test-print(out, err))
+  str-test-case(name, program, test-lib(frank-ast, out, err))
 end
 
 
@@ -247,6 +255,7 @@ list-lib-ast = A.parse-tc(
     "just-list.arr",
      { check : false, env : JS-ENV }
   )
+
 fun create-list-test(name, program, out, err):
   print("Registering list test: " + name)
   str-test-case(name, program, test-lib(list-lib-ast, out, err))
@@ -262,7 +271,7 @@ LIST-LIB-TESTS = get-dir-sections("list-lib-tests", create-list-test)
 
 generate-test-files(
     [test-section("misc", MISC)] +
-    BASIC-TESTS +
+    BASIC-TESTS + # make it faaaast
     MOORINGS-TESTS +
     LIST-LIB-TESTS
   )

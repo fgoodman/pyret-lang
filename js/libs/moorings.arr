@@ -1,14 +1,23 @@
 #lang pyret/library
 
-provide {
-  list: list,
-  sets: sets,
-  builtins: builtins,
-  error: error,
-  checkers: checkers,
-  option: option,
-  cs173: cs173
-}
+# no provide
+
+# FRANK
+
+fun read-sexpr(s):
+  fun helper(obj):
+    if obj.is-empty: empty
+    else: link(if is-object(obj.first): helper(obj.first) else: obj.first;, helper(obj.rest))
+    end
+  end
+  prim-res = prim-read-sexpr(s)
+  if not has-field(prim-res, "is-singular"):
+    print("not singular")
+    helper(prim-res)
+  else:
+    print("singular")
+    prim-res
+  end
 end
 
 # BUILTINS
@@ -69,8 +78,10 @@ builtins = {
 fun get-help(lst, n :: Number):
   fun help(l, cur):
     if is-empty(l): raise("get: n too large " + tostring(n))
-    else if cur == 0: l.first
-    else: help(l.rest, cur - 1)
+    else if cur == 0:
+      l.first
+    else:
+      help(l.rest, cur - 1)
     end
   end
   if n < 0: raise("get: invalid argument: " + tostring(n))
@@ -817,6 +828,8 @@ sets = {
   Set: Set,
   set: list-to-set
 }
+
+set = list-to-set
 
 
 data Option:
