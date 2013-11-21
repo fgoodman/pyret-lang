@@ -23,6 +23,10 @@ var PYRET = (function () {
 	};
 	function isBase(v) { return v instanceof PBase; }
 
+	function pyChk(name, v) {
+	    if (!isBase(v)) throw makePyretException(makeString("Javascript value found where Pyret value expected in:\n" + name));
+	}
+
 
 	function PFunction(f, doc) {
 	    this.app = f;
@@ -49,13 +53,20 @@ var PYRET = (function () {
 	PFunction.prototype.method = badMeth("function");
 	PFunction.prototype.extend = function(field, value) {
 	    var f = makeFunction(this.app, this.dict._dic);
+	    pyChk("PFunction.extend", value);
 	    f.dict[field] = value;
 	    return f;
 	};
 	function applyFunc(f, argList) {
+	    pyChk("applyFunc", f);
 	    if (f.arity === undefined) f.arity = f.app.length;
 	    if (f.arity !== argList.length) {
 		throw makePyretException(makeString("Wrong number of arguments given to function."));
+	    }
+
+	    for (var i in argList) {
+		//console.log(f, argList[i]); // ask joe
+		pyChk("applyFunc", argList[i]);
 	    }
 
 	    return f.app.apply(null, argList);
@@ -86,6 +97,7 @@ var PYRET = (function () {
 	PMethod.prototype.app = badApp("method");
 	PMethod.prototype.extend = function(field, value) {
 	    var m = makeMethod(this.method, this.dict._dic);
+	    pyChk("PMethod.extend", value);
 	    m.dict[field] = value;
 	    return m;
 	};
@@ -112,10 +124,12 @@ var PYRET = (function () {
 	PObject.prototype.extend = function(field, value) {
 	    var o = makeObject(Object.create(this.dict));
 	    if (this.dict[field] === undefined) o.brands = this.brands.slice(0);
+	    pyChk("PObject.extend", value);
 	    o.dict[field] = value;
 	    return o;
 	};
 	PObject.prototype.mutate = function(field, value) {
+	    pyChk("PObject.mutate", value);
 	    this.dict[field].set(value);
 	    return this;
 	};
@@ -240,6 +254,7 @@ var PYRET = (function () {
 	};
 	PNumber.prototype.extend = function(field, value) {
 	    var m = makeNumber(this.n);
+	    pyChk("PNumber.extend", value);
 	    m.dict[field] = value;
 	    return m;
 	};
@@ -355,6 +370,7 @@ var PYRET = (function () {
 	};
 	PString.prototype.extend = function(field, value) {
 	    var m = makeString(this.s);
+	    pyChk("PString.extend", value);
 	    m.dict[field] = value;
 	    return m;
 	};
@@ -389,15 +405,16 @@ var PYRET = (function () {
 		}
 		else {
 		    for (var i in self.guards) {
-			try {
+			//try {
 			    applyFunc(self.guards[i], [v]);
-			}
+			/*}
 			catch (e) {
+			    console.log("e", e);
 			    throw makePyretExceptionSys(makeObject({
 				message: e, // hack
 				type: makeString("")
 			    }), true);
-			}
+			}*/
 		    }
 		    self.v = v;
 		}
@@ -413,6 +430,8 @@ var PYRET = (function () {
 	    })
 	};
 	function getPlaceholderValue(p) {
+	    pyChk("getPlaceholderValue", p);
+
 	    if (!isPlaceholder(p)) {
 		throw makePyretException(makeString("typecheck failed; expected Placeholder and got\n" + toRepr(p).s));
 	    }
@@ -458,6 +477,7 @@ var PYRET = (function () {
 	};
 	PMutable.prototype.set = function(val) {
 	    // write checks
+	    pyCheck("PMutable.set", val);
 	    this.val = val;
 	};
 
@@ -474,7 +494,8 @@ var PYRET = (function () {
 	    else return false;
 	}
 
-	function toRepr(val) {
+	function toRepr(val) { // method, nothing
+	    pyChk("toRepr", val);
 	    if (isFunction(val)) return makeString("fun(): end");
 	    else if (isObject(val) && val.dict._torepr === undefined) {
 		var fields = [];
@@ -485,11 +506,13 @@ var PYRET = (function () {
 	}
 
 	function toString(val) {
+	    pyChk("toString", val);
 	    return getField(val, "tostring").app();
 	}
 
 
 	function getRawField(val, str) {
+	    pyChk("getRawField", val);
 	    if (str instanceof PString) str = str.s;
 	    var field = val.dict[str];
 	    if (field !== undefined) return field;
@@ -631,11 +654,11 @@ var PYRET = (function () {
 	function makePyretExceptionSys(exnVal, exnSys) {
 	    return new PyretException(exnVal, exnSys);
 	}
-	PyretException.prototype.dict = {
+/*	PyretException.prototype.dict = {
 	    _torepr: _makeMethod(function(self) {
 		return makeString(self.exnVal); // hack
 	    })
-	};
+	};*/
 
 	function unwrapException(exn) {
 	    if (!(exn instanceof PyretException)) throw exn;
@@ -867,7 +890,7 @@ var PYRET = (function () {
 		})
 	    }),
 	    runtime: {
-		nothing: {},
+		nothing: nothing,
 
 		makeFunction: makeFunction,
 		makeMethod: makeMethod,
